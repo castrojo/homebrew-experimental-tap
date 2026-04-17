@@ -9,10 +9,10 @@ class Buildstream < Formula
 
   bottle do
     root_url "https://github.com/ublue-os/homebrew-experimental-tap/releases/download/buildstream-2.6.0"
-    sha256 cellar: :any_skip_relocation, x86_64_linux: "21189fbc1cf13e3c3077fa29c48c5b58cb742195f2314bce19b965f45159bb95"
+    rebuild 1
+    sha256 cellar: :any_skip_relocation, x86_64_linux: "dc1be06572a6be48d65075aa5cdb3f6b978320bd9a225e9c3c0a2a9e91ee873d"
   end
 
-  depends_on "buildbox"
   depends_on "gpatch"
   depends_on :linux
   depends_on "lzip"
@@ -156,6 +156,12 @@ class Buildstream < Formula
     venv.pip_install buildpath, build_isolation: false
 
     bin.install_symlink libexec/"bin/bst"
+  end
+
+  def caveats
+    <<~EOS
+      To be able to build with buildstream you need buildbox, install it with "brew install --cask ublue-os/experimental-tap/buildbox".
+    EOS
   end
 
   test do

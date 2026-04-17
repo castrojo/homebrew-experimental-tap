@@ -1,11 +1,22 @@
 class BluefinCli < Formula
   desc "Bluefin's CLI tool"
   homepage "https://github.com/hanthor/bluefin-cli"
-  url "https://github.com/hanthor/bluefin-cli.git",
-      tag:      "v0.0.3",
-      revision: "a02c6ff89cf17e23e483b56959412ec8fbc85e6f"
+  url "https://github.com/hanthor/bluefin-cli/archive/refs/tags/v0.6.4.tar.gz"
+  sha256 "5705fbdcd2c284e773b840b49545783053d37ea56d09024f711a171be814b000"
   license "Apache-2.0"
-  head "https://github.com/hanthor/bluefin-cli.git", branch: "master"
+  head "https://github.com/hanthor/bluefin-cli.git", branch: "main"
+
+  livecheck do
+    url :stable
+    strategy :github_latest
+  end
+
+  bottle do
+    root_url "https://github.com/ublue-os/homebrew-experimental-tap/releases/download/bluefin-cli-0.6.4"
+    rebuild 1
+    sha256 cellar: :any_skip_relocation, arm64_linux:  "526f7075dd47bf1875bff08ddd668f2fb245ad95d5807bda9af8995570c9b73f"
+    sha256 cellar: :any_skip_relocation, x86_64_linux: "f52d1e2c882000727b093cb31aafd5d7a3fe92e3d11b89f27606796db9b7197c"
+  end
 
   depends_on "go" => :build
 
@@ -15,6 +26,6 @@ class BluefinCli < Formula
   end
 
   test do
-    assert_match "version", shell_output("#{bin}/bluefin-cli --version")
+    assert_match version.to_s, shell_output("#{bin}/bluefin-cli --version")
   end
 end

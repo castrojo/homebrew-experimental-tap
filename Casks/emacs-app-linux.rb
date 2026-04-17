@@ -43,11 +43,26 @@ cask "emacs-app-linux" do
            target: "#{HOMEBREW_PREFIX}/opt/emacs-app-linux/libexec"
 
   preflight do
+    arch_str = on_arch_conditional arm: "arm64", intel: "amd64"
+
+    emacs_version = version.split("-").first
+    staged_prefix = "#{staged_path}/emacs-pgtk-#{emacs_version}-fedora-latest-#{arch_str}"
+
     # Make run-emacs.sh executable
-    FileUtils.chmod "+x", "#{staged_path}/emacs-pgtk-#{version.split("-").first}-fedora-latest-#{arch}/run-emacs.sh"
+    FileUtils.chmod "+x", "#{staged_prefix}/run-emacs.sh"
+
+    # Create symlink to pdmp file in bin directory - Emacs automatically finds it there
+    # Emacs looks for {binary-name}.pdmp next to the binary (e.g., emacs-30.2.pdmp)
+    # Using a relative symlink saves ~12MB compared to copying
+    target_triplet = on_arch_conditional arm: "aarch64-unknown-linux-gnu", intel: "x86_64-pc-linux-gnu"
+    pdmp_source = Dir.glob("#{staged_prefix}/libexec/emacs/#{emacs_version}/#{target_triplet}/*.pdmp").first
+    if pdmp_source
+      relative_path = "../libexec/emacs/#{emacs_version}/#{target_triplet}/#{File.basename(pdmp_source)}"
+      FileUtils.ln_sf(relative_path, "#{staged_prefix}/bin/emacs-#{emacs_version}.pdmp")
+    end
 
     # Update the run-emacs.sh script to include all necessary Homebrew library paths
-    script_path = "#{staged_path}/emacs-pgtk-#{version.split("-").first}-fedora-latest-#{arch}/run-emacs.sh"
+    script_path = "#{staged_prefix}/run-emacs.sh"
     content = File.read(script_path)
 
     # Add tree-sitter and libgccjit paths after the Homebrew lib path check
@@ -72,9 +87,6 @@ cask "emacs-app-linux" do
     )
 
     # Add Emacs data directory environment variables after the GSETTINGS_SCHEMA_DIR line
-    emacs_version = version.split("-").first
-    # ARM64 uses aarch64-unknown-linux-gnu, x86_64 uses x86_64-pc-linux-gnu
-    target_triplet = on_arch_conditional arm: "aarch64-unknown-linux-gnu", intel: "x86_64-pc-linux-gnu"
     emacs_env_vars = <<~ENVVARS
       export GSETTINGS_SCHEMA_DIR="$SCRIPT_DIR/share/glib-2.0/schemas"
 
@@ -83,12 +95,13 @@ cask "emacs-app-linux" do
         export EMACSDATA="/home/linuxbrew/.linuxbrew/opt/emacs-app-linux/share/emacs/#{emacs_version}/etc"
         export EMACSPATH="/home/linuxbrew/.linuxbrew/opt/emacs-app-linux/libexec/emacs/#{emacs_version}/#{target_triplet}"
         export EMACSDOC="/home/linuxbrew/.linuxbrew/opt/emacs-app-linux/share/emacs/#{emacs_version}/etc"
-        export EMACSLOADPATH="/home/linuxbrew/.linuxbrew/opt/emacs-app-linux/share/emacs/#{emacs_version}/lisp"
+        # Set EMACSLOADPATH with trailing colon to make Emacs use this path and automatically append subdirectories
+        export EMACSLOADPATH="/home/linuxbrew/.linuxbrew/opt/emacs-app-linux/share/emacs/#{emacs_version}/lisp:"
       else
         export EMACSDATA="$SCRIPT_DIR/share/emacs/#{emacs_version}/etc"
         export EMACSPATH="$SCRIPT_DIR/bin"
         export EMACSDOC="$SCRIPT_DIR/share/emacs/#{emacs_version}/etc"
-        export EMACSLOADPATH="$SCRIPT_DIR/share/emacs/#{emacs_version}/lisp"
+        export EMACSLOADPATH="$SCRIPT_DIR/share/emacs/#{emacs_version}/lisp:"
       fi
     ENVVARS
 
@@ -139,6 +152,8 @@ cask "emacs-app-linux" do
     end
 
     # Install desktop files with corrected Exec paths
+    emacs_version = version.split("-").first
+    emacs_wm_class = "emacs-#{emacs_version.tr(".", "-")}"
     desktop_files = %w[emacs emacsclient emacs-mail emacsclient-mail]
     desktop_files.each do |desktop_name|
       src_desktop = "#{emacs_root}/share/applications/#{desktop_name}.desktop"
@@ -150,6 +165,19 @@ cask "emacs-app-linux" do
       desktop_content.gsub!(%r{Exec=/usr/local/bin/emacs}, "Exec=#{HOMEBREW_PREFIX}/bin/emacs")
       desktop_content.gsub!(%r{Exec=/usr/local/bin/emacsclient}, "Exec=#{HOMEBREW_PREFIX}/bin/emacsclient")
       desktop_content.gsub!("Exec=emacsclient", "Exec=#{HOMEBREW_PREFIX}/bin/emacsclient")
+
+      # Fix WMClass to ensure proper window grouping (use hyphen, not dot, to match Emacs binary name)
+      # Replace existing StartupWMClass line or add new one if missing
+      case desktop_content
+      when /^StartupWMClass=/i
+        desktop_content.gsub!(/^StartupWMClass=.*/i, "StartupWMClass=#{emacs_wm_class}")
+      when /^StartupNotify=/i
+        # Insert after StartupNotify line if it exists
+        desktop_content.gsub!(/^(StartupNotify=.*?)$/i, "\\1\nStartupWMClass=#{emacs_wm_class}")
+      when /^Categories=/i
+        # Insert before Categories line if it exists
+        desktop_content.gsub!(/^(Categories=.*?)$/i, "StartupWMClass=#{emacs_wm_class}\n\\1")
+      end
 
       File.write("#{Dir.home}/.local/share/applications/#{desktop_name}.desktop", desktop_content)
     end

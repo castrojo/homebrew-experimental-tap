@@ -3,9 +3,9 @@ cask "phpstorm-linux" do
        arm:   "-aarch64"
   os linux: "linux"
 
-  version "2025.3.2,253.30387.85"
-  sha256 x86_64_linux: "5bd3b60d8cc9004b6015befdc5818c50dbe2f323261fea1184d7a82b21ed60ef",
-         arm64_linux:  "6220c785e4fd65b984ef958b774fbf54b6b577e587cd709c1839163342ce8ff8"
+  version "2026.1,261.22158.283"
+  sha256 x86_64_linux: "3a949cfd78389d687d5d1a5537c14b695d46c33f246ccf92f56564dbb8c9ee06",
+         arm64_linux:  "4ada12cd2c787f179e07e3e7641e4f084ccf26e5826be1de63dbba8461a55078"
 
   url "https://download.jetbrains.com/webide/PhpStorm-#{version.csv.first}#{arch}.tar.gz"
   name "PhpStorm"
